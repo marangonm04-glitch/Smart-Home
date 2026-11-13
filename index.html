@@ -303,28 +303,15 @@
             }
         }
 
-        // Filtro corretto: esclude le luci (come "luce camino") e riconosce solo le vere telecamere
+        // Filtro basato SOLO sul nome: sposta a destra solo i dispositivi che sono effettivamente telecamere
         function isCameraDevice(dev) {
             const label = (dev.label || dev.name || '').toLowerCase();
             
-            // Se nel nome c'è la parola "luce", non è MAI una telecamera
+            // Se contiene la parola "luce", va SEMPRE a sinistra
             if (label.includes('luce')) return false;
 
-            const hasCamName = label.includes('telecamera') || label.includes('camera') || label.includes('cam ') || label.includes('tapo') || label.endsWith('cam');
-            
-            let hasCamCapability = false;
-            if (dev.components) {
-                dev.components.forEach(comp => {
-                    if (comp.capabilities) {
-                        comp.capabilities.forEach(cap => {
-                            if (['videoStream', 'webrtc', 'imageCapture', 'videoCapture'].includes(cap.id)) {
-                                hasCamCapability = true;
-                            }
-                        });
-                    }
-                });
-            }
-            return hasCamName || hasCamCapability;
+            // Riconosce la telecamera solo se il nome contiene termini specifici
+            return label.includes('telecamera') || label.includes('camera') || label.includes('tapo') || label.includes('cam');
         }
 
         async function checkDeviceHealth(deviceId) {
@@ -497,7 +484,7 @@
 
         async function controlSmartThings(deviceId, command) {
             if (!token) return;
-            showToast(`Invio comando ${command.toUpperCase()}...`);
+            showToast(`Invio comando ${command.toUpperCase()}...`;
 
             try {
                 const response = await fetch(`https://api.smartthings.com/v1/devices/${deviceId}/commands`, {
