@@ -140,10 +140,13 @@
 
         function setupStream() {
             const box = document.getElementById('cam-box');
-            // URL standard locale del server go2rtc avviato sul Chromebook
             box.innerHTML = '<iframe src="http://localhost:1984/api/stream.html?src=tapo_esterna" allowfullscreen></iframe>';
-        }
+}
 
+// Avvia automaticamente il caricamento del flusso al caricamento della pagina
+window.addEventListener('DOMContentLoaded', () => {
+    setupStream();
+});
         loadDevices();
     </script>
 </body>
