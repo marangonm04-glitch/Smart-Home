@@ -1,4 +1,4 @@
-as<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="it">
 <head>
     <meta charset="UTF-8">
@@ -69,7 +69,7 @@ as<!DOCTYPE html>
         .cam-container {
             position: relative;
             width: 100%;
-            height: 300px;
+            height: 320px;
             background: #000;
             border-radius: 6px;
             overflow: hidden;
@@ -105,7 +105,8 @@ as<!DOCTYPE html>
         <div class="card">
             <h2>📷 Telecamera Live</h2>
             <div class="cam-container" id="cam-box">
-                <button class="btn" onclick="setupStream()">🔗 Collega Stream Tapo</button>
+                <!-- Streaming go2rtc locale -->
+                <iframe src="http://localhost:1984/api/stream.html?src=tapo_esterna" allowfullscreen></iframe>
             </div>
         </div>
     </div>
@@ -136,18 +137,7 @@ as<!DOCTYPE html>
                 
                 container.innerHTML = '';
                 if (data.items && data.items.length > 0) {
-                    // Filtriamo via la telecamera dalla lista delle luci
-                    const devices = data.items.filter(dev => {
-                        const name = (dev.label || dev.name).toLowerCase();
-                        return !name.includes('telecamera') && !name.includes('cam');
-                    });
-
-                    if (devices.length === 0) {
-                        container.innerHTML = 'Nessuna luce o interruttore trovato.';
-                        return;
-                    }
-
-                    for (const dev of devices) {
+                    for (const dev of data.items) {
                         let isOn = false;
                         try {
                             const statusRes = await fetch(`https://api.smartthings.com/v1/devices/${dev.deviceId}/status`, {
@@ -195,7 +185,6 @@ as<!DOCTYPE html>
                         }]
                     })
                 });
-                // Ricarica la lista per aggiornare lo stato del pulsante
                 loadDevices();
             } catch (e) {
                 alert("Errore durante l'invio del comando.");
@@ -203,16 +192,7 @@ as<!DOCTYPE html>
             }
         }
 
-          function setupStream() {
-            const box = document.getElementById('cam-box');
-            box.innerHTML = '<iframe src="http://localhost:1984/api/stream.html?src=tapo_esterna" allowfullscreen></iframe>';
-        }
-
-        // Avvia automaticamente il flusso della telecamera all'avvio
-        window.addEventListener('DOMContentLoaded', () => {
-            loadDevices();
-            setupStream();
-        });
+        loadDevices();
     </script>
 </body>
 </html>
