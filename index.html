@@ -1,3 +1,4 @@
+cat << 'EOF' > index.html
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -136,14 +137,11 @@
                 
                 container.innerHTML = '';
                 if (data.items && data.items.length > 0) {
-                    
-                    // 👉 È QUI CHE DEVI METTERLO:
                     const devices = data.items.filter(dev => {
                         const name = (dev.label || dev.name).toLowerCase();
                         return !name.includes('telecamera esterna');
                     });
 
-                    // E poi il ciclo continua usando "devices" anziché "data.items":
                     for (const dev of devices) {
                         let isOn = false;
                         try {
@@ -175,7 +173,6 @@
             }
         }
 
-
         async function toggleDevice(deviceId, turnOn) {
             const command = turnOn ? "on" : "off";
             try {
@@ -204,3 +201,4 @@
     </script>
 </body>
 </html>
+EOF
