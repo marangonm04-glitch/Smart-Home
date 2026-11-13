@@ -136,12 +136,14 @@
                 
                 container.innerHTML = '';
                 if (data.items && data.items.length > 0) {
-                    // Escludiamo la telecamera dalla lista delle luci a sinistra
+                    
+                    // 👉 È QUI CHE DEVI METTERLO:
                     const devices = data.items.filter(dev => {
                         const name = (dev.label || dev.name).toLowerCase();
-                        return !name.includes('telecamera') && !name.includes('cam');
+                        return !name.includes('telecamera esterna');
                     });
 
+                    // E poi il ciclo continua usando "devices" anziché "data.items":
                     for (const dev of devices) {
                         let isOn = false;
                         try {
@@ -172,6 +174,7 @@
                 console.error(e);
             }
         }
+
 
         async function toggleDevice(deviceId, turnOn) {
             const command = turnOn ? "on" : "off";
