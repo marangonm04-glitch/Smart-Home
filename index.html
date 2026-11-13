@@ -203,14 +203,16 @@ as<!DOCTYPE html>
             }
         }
 
-        function setupStream() {
+          function setupStream() {
             const box = document.getElementById('cam-box');
             box.innerHTML = '<iframe src="http://localhost:1984/api/stream.html?src=tapo_esterna" allowfullscreen></iframe>';
         }
 
-        // Avvio automatico
-        loadDevices();
-        setupStream();
+        // Avvia automaticamente il flusso della telecamera all'avvio
+        window.addEventListener('DOMContentLoaded', () => {
+            loadDevices();
+            setupStream();
+        });
     </script>
 </body>
 </html>
