@@ -29,6 +29,19 @@
             font-size: 0.9rem;
         }
         .btn:hover { background-color: #3b4e7c; }
+        .btn-toggle {
+            background-color: #e53935;
+            color: #fff;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.85rem;
+        }
+        .btn-toggle.on {
+            background-color: #43a047;
+        }
         .grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -85,7 +98,7 @@
         <!-- Sezione Dispositivi e Luci -->
         <div class="card">
             <h2>💡 Dispositivi e Luci</h2>
-            <div id="devices-container">In attesa...</div>
+            <div id="devices-container">Caricamento dispositivi...</div>
         </div>
 
         <!-- Sezione Telecamera Live -->
@@ -123,12 +136,29 @@
                 
                 container.innerHTML = '';
                 if (data.items && data.items.length > 0) {
-                    data.items.forEach(dev => {
+                    for (const dev of data.items) {
+                        // Verifica lo stato corrente di accensione
+                        let isOn = false;
+                        try {
+                            const statusRes = await fetch(`https://api.smartthings.com/v1/devices/${dev.deviceId}/status`, {
+                                headers: { 'Authorization': 'Bearer ' + token }
+                            });
+                            const statusData = await statusRes.json();
+                            isOn = statusData.components?.main?.switch?.switch?.value === 'on';
+                        } catch (err) {
+                            console.error("Errore stato dispositivo", dev.deviceId);
+                        }
+
                         const div = document.createElement('div');
                         div.className = 'device-item';
-                        div.innerHTML = `<span>💡 ${dev.label || dev.name}</span> <span style="font-size:0.8rem; color:#8ab4f8;">Online</span>`;
+                        div.innerHTML = `
+                            <span>💡 ${dev.label || dev.name}</span>
+                            <button class="btn-toggle ${isOn ? 'on' : ''}" onclick="toggleDevice('${dev.deviceId}', ${!isOn})">
+                                ${isOn ? 'ACCESO' : 'SPENTO'}
+                            </button>
+                        `;
                         container.appendChild(div);
-                    });
+                    }
                 } else {
                     container.innerHTML = 'Nessun dispositivo trovato.';
                 }
@@ -138,16 +168,39 @@
             }
         }
 
+        async function toggleDevice(deviceId, turnOn) {
+            const command = turnOn ? "on" : "off";
+            try {
+                await fetch(`https://api.smartthings.com/v1/devices/${deviceId}/commands`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + token,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        commands: [{
+                            component: "main",
+                            capability: "switch",
+                            command: command
+                        }]
+                    })
+                });
+                // Ricarica la lista per aggiornare lo stato del pulsante
+                loadDevices();
+            } catch (e) {
+                alert("Errore durante l'invio del comando.");
+                console.error(e);
+            }
+        }
+
         function setupStream() {
             const box = document.getElementById('cam-box');
             box.innerHTML = '<iframe src="http://localhost:1984/api/stream.html?src=tapo_esterna" allowfullscreen></iframe>';
-}
+        }
 
-// Avvia automaticamente il caricamento del flusso al caricamento della pagina
-window.addEventListener('DOMContentLoaded', () => {
-    setupStream();
-});
+        // Avvio automatico
         loadDevices();
+        setupStream();
     </script>
 </body>
 </html>
