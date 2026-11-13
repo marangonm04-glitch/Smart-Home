@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+as<!DOCTYPE html>
 <html lang="it">
 <head>
     <meta charset="UTF-8">
@@ -136,8 +136,18 @@
                 
                 container.innerHTML = '';
                 if (data.items && data.items.length > 0) {
-                    for (const dev of data.items) {
-                        // Verifica lo stato corrente di accensione
+                    // Filtriamo via la telecamera dalla lista delle luci
+                    const devices = data.items.filter(dev => {
+                        const name = (dev.label || dev.name).toLowerCase();
+                        return !name.includes('telecamera') && !name.includes('cam');
+                    });
+
+                    if (devices.length === 0) {
+                        container.innerHTML = 'Nessuna luce o interruttore trovato.';
+                        return;
+                    }
+
+                    for (const dev of devices) {
                         let isOn = false;
                         try {
                             const statusRes = await fetch(`https://api.smartthings.com/v1/devices/${dev.deviceId}/status`, {
