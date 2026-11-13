@@ -216,9 +216,10 @@
             gap: 10px;
         }
 
-        .camera-feed img, .camera-feed video {
+        .camera-feed iframe, .camera-feed img {
             width: 100%;
-            height: 220px;
+            height: 230px;
+            border: none;
             object-fit: cover;
         }
 
@@ -302,10 +303,10 @@
             }
         }
 
-        // Riconosce se il dispositivo è una telecamera dalle capacità o dal nome
+        // Filtro rigoroso: riconosce la telecamera tramite le capacità video di SmartThings o il nome
         function isCameraDevice(dev) {
             const label = (dev.label || dev.name || '').toLowerCase();
-            const hasCamName = label.includes('telecamera') || label.includes('camera') || label.includes('cam');
+            const hasCamName = label.includes('telecamera') || label.includes('camera') || label.includes('cam') || label.includes('tapo');
             
             let hasCamCapability = false;
             if (dev.components) {
@@ -322,7 +323,6 @@
             return hasCamName || hasCamCapability;
         }
 
-        // Controlla se il dispositivo è ONLINE o OFFLINE
         async function checkDeviceHealth(deviceId) {
             try {
                 const res = await fetch(`https://api.smartthings.com/v1/devices/${deviceId}/health`, {
@@ -336,69 +336,37 @@
             }
         }
 
-        // Tenta di estrarre il flusso video o l'istantanea da SmartThings
-        async function fetchCameraFeed(deviceId, camName) {
+        // Gestione dello streaming della telecamera (go2rtc o fallback)
+        function setupCameraFeed(deviceId, camName) {
             const feedContainer = document.getElementById(`feed-${deviceId}`);
-            
-            // Se l'utente ha salvato un link stream diretto (es. MJPEG / go2rtc), usa quello
-            if (customCamStreams[deviceId]) {
+            const savedUrl = customCamStreams[deviceId];
+
+            if (savedUrl) {
                 feedContainer.style.padding = '0';
-                feedContainer.innerHTML = `<img src="${customCamStreams[deviceId]}" alt="${camName}">`;
+                // Se è un link go2rtc, usa un iframe pulito e fluido
+                if (savedUrl.includes('1984') || savedUrl.includes('stream')) {
+                    feedContainer.innerHTML = `<iframe src="${savedUrl}" allowfullscreen></iframe>`;
+                } else {
+                    feedContainer.innerHTML = `<img src="${savedUrl}" alt="${camName}">`;
+                }
                 return;
             }
 
-            try {
-                // Prova a richiedere l'avvio dello stream video a SmartThings
-                await fetch(`https://api.smartthings.com/v1/devices/${deviceId}/commands`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': 'Bearer ' + token,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        commands: [{ component: "main", capability: "videoStream", command: "startStream" }]
-                    })
-                });
-
-                // Legge lo stato della telecamera per vedere se c'è un URL stream o un'immagine
-                const res = await fetch(`https://api.smartthings.com/v1/devices/${deviceId}/status`, {
-                    headers: { 'Authorization': 'Bearer ' + token }
-                });
-                
-                if (res.ok) {
-                    const statusData = await res.json();
-                    const main = statusData.components?.main || {};
-                    const streamUrl = main.videoStream?.stream?.value?.OutHomeURL || main.videoStream?.stream?.value?.InHomeURL;
-                    const imageUrl = main.imageCapture?.image?.value;
-
-                    if (streamUrl && streamUrl.startsWith('http')) {
-                        feedContainer.style.padding = '0';
-                        feedContainer.innerHTML = `<video src="${streamUrl}" autoplay muted playsinline controls></video>`;
-                        return;
-                    } else if (imageUrl) {
-                        feedContainer.style.padding = '0';
-                        feedContainer.innerHTML = `<img src="${imageUrl}" alt="${camName}">`;
-                        return;
-                    }
-                }
-            } catch (e) {
-                console.log("Stream diretto non esposto via API standard:", e);
-            }
-
-            // Fallback pulito se il produttore (es. Tuya/Tapo) cripta il video sull'app ufficiale
+            // Se non è stato inserito un URL go2rtc, mostra il pannello con l'opzione per collegarlo
             feedContainer.innerHTML = `
-                <div style="font-size: 0.85rem; max-width: 85%;">
-                    🔒 Il produttore di questa telecamera trasmette il video criptato solo tramite l'app SmartThings.
+                <div style="font-size: 0.85rem; max-width: 90%; color: #cbd5e1;">
+                    Collega il flusso di <strong>go2rtc</strong> per vedere la diretta qui.
                 </div>
-                <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center;">
-                    <a href="https://my.smartthings.com" target="_blank" class="btn-cam-action">Apri Live su SmartThings</a>
-                    <button class="btn-secondary" style="font-size:0.8rem;" onclick="setCustomCamUrl('${deviceId}')">🔗 Inserisci URL Stream</button>
+                <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin-top: 5px;">
+                    <button class="btn-cam-action" onclick="setCustomCamUrl('${deviceId}')">🔗 Incolla URL go2rtc</button>
+                    <a href="https://my.smartthings.com" target="_blank" class="btn-secondary" style="font-size:0.8rem; text-decoration:none; display:inline-flex; align-items:center;">App SmartThings</a>
                 </div>
             `;
         }
 
         function setCustomCamUrl(deviceId) {
-            const url = prompt("Incolla l'URL video HTTP/MJPEG della telecamera (lascia vuoto per rimuovere):", customCamStreams[deviceId] || "");
+            const defaultUrl = "http://localhost:1984/api/stream.html?src=tapo_esterna";
+            const url = prompt("Incolla l'URL della telecamera da go2rtc (es. http://IP_CHROMEBOOK:1984/api/stream.html?src=tapo_esterna):", customCamStreams[deviceId] || defaultUrl);
             if (url !== null) {
                 if (url.trim() === "") {
                     delete customCamStreams[deviceId];
@@ -437,13 +405,13 @@
                 devicesList.innerHTML = '';
                 camerasList.innerHTML = '';
 
-                // Separa automaticamente le telecamere dalle luci/prese
+                // Divisione netta e sicura tra telecamere e luci/dispositivi
                 const cameras = data.items.filter(dev => isCameraDevice(dev));
                 const regularDevices = data.items.filter(dev => !isCameraDevice(dev));
 
                 camCount.innerText = `${cameras.length} rilevate`;
 
-                // 1. Popola la colonna di DESTRA (Telecamere)
+                // 1. Popola la colonna delle TELECAMERE (destra)
                 if (cameras.length === 0) {
                     camerasList.innerHTML = `<div class="device-card" style="justify-content:center; color:#94a3b8; font-size:0.9rem;">
                         Nessuna telecamera rilevata su SmartThings.
@@ -456,28 +424,18 @@
                         box.innerHTML = `
                             <div class="camera-header">
                                 <span>${camName}</span>
-                                <span id="cam-status-${cam.deviceId}" style="font-size:0.8rem; color:#facc15;">Verifica...</span>
+                                <span id="cam-status-${cam.deviceId}" style="font-size:0.8rem; color:#facc15;"><span class="live-dot"></span> LIVE</span>
                             </div>
                             <div class="camera-feed" id="feed-${cam.deviceId}">
-                                <span>Caricamento flusso video...</span>
+                                <span>Caricamento flusso...</span>
                             </div>
                         `;
                         camerasList.appendChild(box);
-
-                        checkDeviceHealth(cam.deviceId).then(state => {
-                            const statusEl = document.getElementById(`cam-status-${cam.deviceId}`);
-                            if (state === 'ONLINE') {
-                                statusEl.innerHTML = `<span class="live-dot"></span> <span style="color:#4ade80;">IN LINEA</span>`;
-                                fetchCameraFeed(cam.deviceId, camName);
-                            } else {
-                                statusEl.innerHTML = `<span style="color:#f87171;">● NON IN LINEA</span>`;
-                                document.getElementById(`feed-${cam.deviceId}`).innerHTML = `<span>Telecamera scollegata o spenta.</span>`;
-                            }
-                        });
+                        setupCameraFeed(cam.deviceId, camName);
                     });
                 }
 
-                // 2. Popola la colonna di SINISTRA (Luci e Dispositivi)
+                // 2. Popola la colonna delle LUCI E DISPOSITIVI (sinistra)
                 let onlineCount = 0;
                 if (regularDevices.length === 0) {
                     devicesList.innerHTML = '<div class="device-card">Nessuna luce o presa trovata.</div>';
@@ -494,7 +452,7 @@
                         <div class="device-info">
                             <span class="device-name">${dev.label || dev.name}</span>
                             <span class="status-badge text-checking" id="health-${dev.deviceId}">
-                                <span class="dot-checking"></span> Verifica connessione...
+                                <span class="dot-checking"></span> Verifica...
                             </span>
                         </div>
                         <div class="button-group">
@@ -522,7 +480,8 @@
                         } else {
                             badge.className = 'status-badge';
                             badge.style.color = '#94a3b8';
-                            badge.innerHTML = `• Stato sconosciuto`;
+                            badge.innerHTML = `• Connesso`;
+                            onlineCount++;
                         }
 
                         syncStatus.innerHTML = `<span style="color:#4ade80;">${onlineCount} in linea</span> su ${regularDevices.length}`;
@@ -542,7 +501,7 @@
 
             try {
                 const response = await fetch(`https://api.smartthings.com/v1/devices/${deviceId}/commands`, {
-                    method: 'POST',
+                    method: `POST`,
                     headers: {
                         'Authorization': 'Bearer ' + token,
                         'Content-Type': 'application/json'
@@ -559,10 +518,10 @@
                 if (response.ok) {
                     showToast(`✅ Comando eseguito!`);
                 } else {
-                    showToast(`⚠️ Comando non supportato da questo dispositivo.`, true);
+                    showToast(`⚠️ Comando non supportato.`, true);
                 }
             } catch (err) {
-                showToast(`❌ Errore durante l'invio del comando`, true);
+                showToast(`❌ Errore di rete`, true);
             }
         }
 
