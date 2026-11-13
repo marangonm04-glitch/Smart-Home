@@ -105,7 +105,6 @@
         <div class="card">
             <h2>📷 Telecamera Live</h2>
             <div class="cam-container" id="cam-box">
-                <!-- Streaming go2rtc locale -->
                 <iframe src="http://localhost:1984/api/stream.html?src=tapo_esterna" allowfullscreen></iframe>
             </div>
         </div>
@@ -137,7 +136,13 @@
                 
                 container.innerHTML = '';
                 if (data.items && data.items.length > 0) {
-                    for (const dev of data.items) {
+                    // Escludiamo la telecamera dalla lista delle luci a sinistra
+                    const devices = data.items.filter(dev => {
+                        const name = (dev.label || dev.name).toLowerCase();
+                        return !name.includes('telecamera') && !name.includes('cam');
+                    });
+
+                    for (const dev of devices) {
                         let isOn = false;
                         try {
                             const statusRes = await fetch(`https://api.smartthings.com/v1/devices/${dev.deviceId}/status`, {
