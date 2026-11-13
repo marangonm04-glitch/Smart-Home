@@ -303,10 +303,14 @@
             }
         }
 
-        // Filtro rigoroso: riconosce la telecamera tramite le capacità video di SmartThings o il nome
+        // Filtro corretto: esclude le luci (come "luce camino") e riconosce solo le vere telecamere
         function isCameraDevice(dev) {
             const label = (dev.label || dev.name || '').toLowerCase();
-            const hasCamName = label.includes('telecamera') || label.includes('camera') || label.includes('cam') || label.includes('tapo');
+            
+            // Se nel nome c'è la parola "luce", non è MAI una telecamera
+            if (label.includes('luce')) return false;
+
+            const hasCamName = label.includes('telecamera') || label.includes('camera') || label.includes('cam ') || label.includes('tapo') || label.endsWith('cam');
             
             let hasCamCapability = false;
             if (dev.components) {
@@ -336,14 +340,12 @@
             }
         }
 
-        // Gestione dello streaming della telecamera (go2rtc o fallback)
         function setupCameraFeed(deviceId, camName) {
             const feedContainer = document.getElementById(`feed-${deviceId}`);
             const savedUrl = customCamStreams[deviceId];
 
             if (savedUrl) {
                 feedContainer.style.padding = '0';
-                // Se è un link go2rtc, usa un iframe pulito e fluido
                 if (savedUrl.includes('1984') || savedUrl.includes('stream')) {
                     feedContainer.innerHTML = `<iframe src="${savedUrl}" allowfullscreen></iframe>`;
                 } else {
@@ -352,7 +354,6 @@
                 return;
             }
 
-            // Se non è stato inserito un URL go2rtc, mostra il pannello con l'opzione per collegarlo
             feedContainer.innerHTML = `
                 <div style="font-size: 0.85rem; max-width: 90%; color: #cbd5e1;">
                     Collega il flusso di <strong>go2rtc</strong> per vedere la diretta qui.
@@ -405,13 +406,12 @@
                 devicesList.innerHTML = '';
                 camerasList.innerHTML = '';
 
-                // Divisione netta e sicura tra telecamere e luci/dispositivi
                 const cameras = data.items.filter(dev => isCameraDevice(dev));
                 const regularDevices = data.items.filter(dev => !isCameraDevice(dev));
 
                 camCount.innerText = `${cameras.length} rilevate`;
 
-                // 1. Popola la colonna delle TELECAMERE (destra)
+                // 1. Colonna TELECAMERE (destra)
                 if (cameras.length === 0) {
                     camerasList.innerHTML = `<div class="device-card" style="justify-content:center; color:#94a3b8; font-size:0.9rem;">
                         Nessuna telecamera rilevata su SmartThings.
@@ -424,7 +424,7 @@
                         box.innerHTML = `
                             <div class="camera-header">
                                 <span>${camName}</span>
-                                <span id="cam-status-${cam.deviceId}" style="font-size:0.8rem; color:#facc15;"><span class="live-dot"></span> LIVE</span>
+                                <span style="font-size:0.8rem; color:#4ade80;"><span class="live-dot"></span> LIVE</span>
                             </div>
                             <div class="camera-feed" id="feed-${cam.deviceId}">
                                 <span>Caricamento flusso...</span>
@@ -435,7 +435,7 @@
                     });
                 }
 
-                // 2. Popola la colonna delle LUCI E DISPOSITIVI (sinistra)
+                // 2. Colonna LUCI E DISPOSITIVI (sinistra)
                 let onlineCount = 0;
                 if (regularDevices.length === 0) {
                     devicesList.innerHTML = '<div class="device-card">Nessuna luce o presa trovata.</div>';
@@ -501,7 +501,7 @@
 
             try {
                 const response = await fetch(`https://api.smartthings.com/v1/devices/${deviceId}/commands`, {
-                    method: `POST`,
+                    method: 'POST',
                     headers: {
                         'Authorization': 'Bearer ' + token,
                         'Content-Type': 'application/json'
