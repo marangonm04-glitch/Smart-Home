@@ -95,7 +95,7 @@ cat << 'EOF' > index.html
         </div>
     </header>
 
-    <div class="grid">
+    <\div class="grid">
         <!-- Sezione Dispositivi e Luci -->
         <div class="card">
             <h2>💡 Dispositivi e Luci</h2>
@@ -106,7 +106,11 @@ cat << 'EOF' > index.html
         <div class="card">
             <h2>📷 Telecamera Live</h2>
             <div class="cam-container" id="cam-box">
-                <iframe src="http://localhost:1984/embed.html?src=tapo_esterna" allowfullscreen></iframe>
+             <div class="cam-container" id="cam-box">
+    <video autoplay playsinline controls muted style="width: 100%; height: 100%; object-fit: cover;">
+        <source src="http://localhost:1984/api/stream.mjpeg?src=tapo_esterna" type="multipart/x-mixed-replace">
+        Il tuo browser non supporta il flusso video.
+    </video>
             </div>
         </div>
     </div>
